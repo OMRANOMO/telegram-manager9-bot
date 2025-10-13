@@ -1,95 +1,101 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
-import json
 import os
-
-# إعدادات البوت
-TOKEN_MANAGER = os.getenv("TOKEN_MANAGER")
-STATUS_FILE = "test_status.json"
-
-# تحميل حالة الاختبارات من ملف JSON
-def load_status():
-    if os.path.exists(STATUS_FILE):
-        try:
-            with open(STATUS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            for i in range(1, 33):
-                key = f"الاختبار {i}"
-                if key not in data:
-                    data[key] = "on"
-            return data
-        except:
-            pass
-    return {f"الاختبار {i}": "on" for i in range(1, 33)}
-
-# حفظ الحالة في الملف
-def save_status(status):
-    with open(STATUS_FILE, "w", encoding="utf-8") as f:
-        json.dump(status, f, ensure_ascii=False, indent=2)
-
-# توليد لوحة التحكم
-def generate_management_keyboard(status):
-    buttons = []
-    for i in range(1, 33):
-        test_name = f"الاختبار {i}"
-        current = status[test_name]
-        toggle = "off" if current == "on" else "on"
-        buttons.append([
-            InlineKeyboardButton(test_name, callback_data="noop"),
-            InlineKeyboardButton(current.upper(), callback_data=f"toggle_{test_name}_{toggle}")
-        ])
-    return InlineKeyboardMarkup(buttons)
-
-# بدء البوت
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"معرف المجموعة هو: {update.effective_chat.id}")
-    keyboard = [[InlineKeyboardButton("manag", callback_data="manage")]]
-    await update.message.reply_text("👋 أهلاً بك في بوت الإدارة", reply_markup=InlineKeyboardMarkup(keyboard))
-
-# التعامل مع الأزرار
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    status = load_status()
-
-    if query.data == "manage":
-        keyboard = generate_management_keyboard(status)
-        await query.message.reply_text("🛠 إدارة حالة الاختبارات:", reply_markup=keyboard)
-
-    elif query.data.startswith("toggle_"):
-        _, test_name, new_status = query.data.split("_")
-        status[test_name] = new_status
-        save_status(status)
-
-        # تحديث الرسالة الحالية بلوحة جديدة
-        keyboard = generate_management_keyboard(status)
-        await query.edit_message_reply_markup(reply_markup=keyboard)
-
-# استقبال الإحصائيات من بوت الاختبارات
-async def receive_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"📊 تم استلام إحصائية:\n\n{update.message.text}")
-
-# تشغيل البوت
-app = ApplicationBuilder().token(TOKEN_MANAGER).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button_handler))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_stats))
-
-print("✅ Manager bot is running...")
-app.run_polling()
-
+import json
 import threading
 from flask import Flask
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+)
 
-app = Flask(__name__)
+# إعداد التوكن والمنفذ
+TOKEN = os.getenv("TOKEN_MANAGER")
+PORT = int(os.environ.get("PORT", 10000))
+WEBHOOK_URL = f"https://اسم-الخدمة.onrender.com/{TOKEN}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
+GROUP_CHAT_ID = -100758881451  # غيّر هذا إلى معرف مجموعتك
 
-@app.route('/')
-def home():
-    return "Bot is running."
+# إعداد البوت باستخدام Webhook
+app = ApplicationBuilder().token(TOKEN).webhook(
+    listen="0.0.0.0",
+    port=PORT,
+    url_path=TOKEN,
+    webhook_url=WEBHOOK_URL
+).build()
 
-def run_web_server():
-    app.run(host='0.0.0.0', port=10000)
+# أمر /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 أهلاً بك! هذا بوت الإدارة.")
 
-# تشغيل الخادم في خلفية منفصلة
-threading.Thread(target=run_web_server).start()
+# أمر /status
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📊 البوت يعمل بشكل جيد!")
 
+# أمر /help
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🛠 قائمة الأوامر:\n"
+        "/start - بدء المحادثة\n"
+        "/status - حالة البوت\n"
+        "/help - المساعدة\n"
+        "/broadcast <نص> - إرسال رسالة إلى المجموعة\n"
+        "/reset - إعادة تعيين حالة الاختبارات\n"
+        "/stats - عرض إحصائيات الاختبارات"
+    )
+
+# أمر /broadcast
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.args:
+        message = "📢 " + " ".join(context.args)
+        await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=message)
+        await update.message.reply_text("✅ تم إرسال الرسالة إلى المجموعة.")
+    else:
+        await update.message.reply_text("❗ يرجى كتابة الرسالة بعد الأمر /broadcast")
+
+# أمر /reset
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        with open("test_status.json", "w") as f:
+            json.dump({}, f)
+        await update.message.reply_text("✅ تم إعادة تعيين حالة الاختبارات.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ حدث خطأ أثناء إعادة التعيين: {e}")
+
+# أمر /stats
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        with open("test_status.json", "r") as f:
+            data = json.load(f)
+        if not data:
+            await update.message.reply_text("📊 لا توجد بيانات حتى الآن.")
+        else:
+            msg = "📈 إحصائيات الاختبارات:\n"
+            for user, score in data.items():
+                msg += f"- {user}: {score}\n"
+            await update.message.reply_text(msg)
+    except Exception as e:
+        await update.message.reply_text(f"❌ حدث خطأ أثناء قراءة البيانات: {e}")
+
+# تسجيل الأوامر
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("status", status))
+app.add_handler(CommandHandler("help", help_command))
+app.add_handler(CommandHandler("broadcast", broadcast))
+app.add_handler(CommandHandler("reset", reset))
+app.add_handler(CommandHandler("stats", stats))
+
+# خادم Flask لإرضاء Render
+flask_app = Flask(__name__)
+
+@flask_app.route("/")
+def index():
+    return "✅ Webhook is active."
+
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=PORT)
+
+# تشغيل Flask في الخلفية
+threading.Thread(target=run_flask).start()
+
+# تشغيل البوت
+app.run_webhook()
