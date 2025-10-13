@@ -4,7 +4,7 @@ import json
 import os
 
 # إعدادات البوت
-TOKEN_MANAGER = "8408224360:AAEP3tBaiUuWcS-oJ19_cvUJY9f5wxNsjAI"
+TOKEN_MANAGER = os.getenv("TOKEN_MANAGER")
 STATUS_FILE = "test_status.json"
 
 # تحميل حالة الاختبارات من ملف JSON
@@ -77,3 +77,4 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_stats))
 
 print("✅ Manager bot is running...")
 app.run_polling()
+
