@@ -6,7 +6,7 @@ import json
 import os
 
 # إعدادات البوت
-TOKEN_QUIZ = "8469565584:AAFM4WPHwKXWlxJJ6NyWKqno_VAoTJnI-MY"
+TOKEN_QUIZ = os.getenv("TOKEN_QUIZ")
 GROUP_CHAT_ID = -1001234567890  # استبدل بمعرف مجموعة الإدارة
 STATUS_FILE = "test_status.json"
 
@@ -218,3 +218,4 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 print("✅ Quiz bot is running...")
 app.run_polling()
+
