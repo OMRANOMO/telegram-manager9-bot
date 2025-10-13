@@ -1,10 +1,8 @@
 import os
 import json
-import threading
-from flask import Flask
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     ContextTypes,
 )
@@ -16,8 +14,8 @@ WEBHOOK_PATH = f"/{TOKEN}"
 WEBHOOK_URL = f"https://telegram-manager9-bot.onrender.com{WEBHOOK_PATH}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
 GROUP_CHAT_ID = -100758881451  # غيّر هذا إلى معرف مجموعتك
 
-# إعداد البوت
-app = ApplicationBuilder().token(TOKEN).build()
+# إنشاء التطبيق
+app = Application.builder().token(TOKEN).build()
 
 # أوامر البوت
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,19 +72,6 @@ app.add_handler(CommandHandler("help", help_command))
 app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(CommandHandler("reset", reset))
 app.add_handler(CommandHandler("stats", stats))
-
-# خادم Flask لإرضاء Render
-flask_app = Flask(__name__)
-
-@flask_app.route("/")
-def index():
-    return "✅ Webhook is active."
-
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=PORT)
-
-# تشغيل Flask في الخلفية
-threading.Thread(target=run_flask).start()
 
 # تشغيل البوت باستخدام Webhook
 app.run_webhook(
