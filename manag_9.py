@@ -79,19 +79,17 @@ print("✅ Manager bot is running...")
 app.run_polling()
 
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from flask import Flask
 
-class SimpleHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running.")
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running."
 
 def run_web_server():
-    server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
-    server.serve_forever()
+    app.run(host='0.0.0.0', port=10000)
 
 # تشغيل الخادم في خلفية منفصلة
 threading.Thread(target=run_web_server).start()
-
 
