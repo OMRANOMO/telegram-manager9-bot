@@ -12,26 +12,20 @@ from telegram.ext import (
 # إعداد التوكن والمنفذ
 TOKEN = os.getenv("TOKEN_MANAGER")
 PORT = int(os.environ.get("PORT", 10000))
-WEBHOOK_URL = f"https://telegram-manager9-bot.onrender.com/{TOKEN}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
+WEBHOOK_PATH = f"/{TOKEN}"
+WEBHOOK_URL = f"https://telegram-manager9-bot.onrender.com{WEBHOOK_PATH}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
 GROUP_CHAT_ID = -100758881451  # غيّر هذا إلى معرف مجموعتك
 
-# إعداد البوت باستخدام Webhook
-app = ApplicationBuilder().token(TOKEN).webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    url_path=TOKEN,
-    webhook_url=WEBHOOK_URL
-).build()
+# إعداد البوت
+app = ApplicationBuilder().token(TOKEN).build()
 
-# أمر /start
+# أوامر البوت
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👋 أهلاً بك! هذا بوت الإدارة.")
 
-# أمر /status
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📊 البوت يعمل بشكل جيد!")
 
-# أمر /help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🛠 قائمة الأوامر:\n"
@@ -43,7 +37,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/stats - عرض إحصائيات الاختبارات"
     )
 
-# أمر /broadcast
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args:
         message = "📢 " + " ".join(context.args)
@@ -52,7 +45,6 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❗ يرجى كتابة الرسالة بعد الأمر /broadcast")
 
-# أمر /reset
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         with open("test_status.json", "w") as f:
@@ -61,7 +53,6 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ حدث خطأ أثناء إعادة التعيين: {e}")
 
-# أمر /stats
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         with open("test_status.json", "r") as f:
@@ -97,6 +88,10 @@ def run_flask():
 # تشغيل Flask في الخلفية
 threading.Thread(target=run_flask).start()
 
-# تشغيل البوت
-app.run_webhook()
-
+# تشغيل البوت باستخدام Webhook
+app.run_webhook(
+    listen="0.0.0.0",
+    port=PORT,
+    url_path=TOKEN,
+    webhook_url=WEBHOOK_URL
+)
