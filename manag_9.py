@@ -78,3 +78,19 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_stats))
 print("✅ Manager bot is running...")
 app.run_polling()
 
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running.")
+
+def run_web_server():
+    server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
+    server.serve_forever()
+
+# تشغيل الخادم في خلفية منفصلة
+threading.Thread(target=run_web_server).start()
+
