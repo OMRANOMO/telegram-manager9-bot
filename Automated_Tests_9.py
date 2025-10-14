@@ -173,7 +173,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=full_info)
 
     # إعادة عرض قائمة الاختبارات
-       buttons = []
+    buttons = []
     for i in range(1, 33):
         buttons.append([KeyboardButton(f"الاختبار {i}")])
     markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
@@ -184,4 +184,5 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, show_tests))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, select_test))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, collect_info))
 app.run_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=WEBHOOK_URL)
+
 
