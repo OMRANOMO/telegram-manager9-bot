@@ -10,7 +10,7 @@ from telegram.ext import (
 )
 
 # إعداد التوكن والمنفذ
-TOKEN = os.getenv("TOKEN_TEST")
+TOKEN = os.getenv("TOKEN_QUIZ")
 PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_PATH = f"/{TOKEN}"
 WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com{WEBHOOK_PATH}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
@@ -68,4 +68,5 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
