@@ -11,7 +11,7 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN_MANAGER")
 PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_PATH = f"/{TOKEN}"
-WEBHOOK_URL = f"https://اسم-الخدمة.onrender.com{WEBHOOK_PATH}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
+WEBHOOK_URL = f"https://telegram-manager9-bot.onrender.com{WEBHOOK_PATH}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
 GROUP_CHAT_ID = -100758881451  # غيّر هذا إلى معرف مجموعتك
 
 # إنشاء التطبيق
@@ -80,3 +80,4 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
