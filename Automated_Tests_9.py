@@ -1,18 +1,20 @@
-import os, json, asyncio, time
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import os
+import json
+import time
+import asyncio
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
     ContextTypes,
     filters,
 )
 
 TOKEN = os.getenv("TOKEN_QUIZ")
 PORT = int(os.environ.get("PORT", 10000))
-WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"  # غيّر اسم الخدمة
-GROUP_CHAT_ID = -100758881451
+WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"  # غيّر "اسم-الخدمة"
+GROUP_CHAT_ID = -100758881451  # تأكد أن البوت مضاف كمشرف
 
 QUESTIONS = [
     {"q": "ما عاصمة فرنسا؟", "options": ["باريس", "برلين", "مدريد"], "correct": 0},
@@ -27,15 +29,9 @@ QUESTIONS = [
 user_data = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("ابدأ", callback_data="start_form")]]
-    await update.message.reply_text("👋 مرحبًا بك في بوت الاختبارات", reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
+    user_id = update.effective_user.id
     user_data[user_id] = {"step": "name", "answers": [], "start_time": None}
-    await query.message.reply_text("📝 أدخل اسمك الثلاثي:")
+    await update.message.reply_text("👋 مرحبًا بك في بوت الاختبارات.\n📝 أدخل اسمك الثلاثي:")
 
 async def collect_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -62,19 +58,20 @@ async def collect_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif step == "grade":
         data["grade"] = text
         data["step"] = "ready"
-        keyboard = [[InlineKeyboardButton("أنا جاهز للاختبار", callback_data="start_quiz")]]
-        await update.message.reply_text("⏱ مدة الاختبار 14 دقيقة\n❗ الأسئلة تظهر بشكل متتالي", reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def start_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    data = user_data[user_id]
-    data["start_time"] = time.time()
-    data["current_q"] = 0
-    await query.message.reply_text("✅ بدأ الاختبار\n⏳ باقي من الوقت 14 دقيقة")
-    asyncio.create_task(send_timer(update, context))
-    await send_question(update, context)
+        keyboard = ReplyKeyboardMarkup(
+            [[KeyboardButton("أنا جاهز للاختبار")]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+        await update.message.reply_text("⏱ مدة الاختبار 14 دقيقة\n❗ الأسئلة تظهر بشكل متتالي", reply_markup=keyboard)
+    elif step == "ready" and text == "أنا جاهز للاختبار":
+        data["start_time"] = time.time()
+        data["current_q"] = 0
+        await update.message.reply_text("✅ بدأ الاختبار\n⏳ باقي من الوقت 14 دقيقة")
+        asyncio.create_task(send_timer(update, context))
+        await send_question(update, context)
+    elif step == "quiz":
+        await handle_answer(update, context)
 
 async def send_timer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -93,19 +90,21 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     q = QUESTIONS[q_index]
-    buttons = [[InlineKeyboardButton(opt, callback_data=f"answer_{i}")] for i, opt in enumerate(q["options"])]
-    await context.bot.send_message(chat_id=user_id, text=f"❓ السؤال {q_index + 1}: {q['q']}", reply_markup=InlineKeyboardMarkup(buttons))
+    options = [[KeyboardButton(opt)] for opt in q["options"]]
+    markup = ReplyKeyboardMarkup(options, one_time_keyboard=True, resize_keyboard=True)
+    data["step"] = "quiz"
+    await context.bot.send_message(chat_id=user_id, text=f"❓ السؤال {q_index + 1}: {q['q']}", reply_markup=markup)
 
 async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
+    user_id = update.effective_user.id
     data = user_data[user_id]
     q_index = data["current_q"]
-    selected = int(query.data.split("_")[1])
-    correct = QUESTIONS[q_index]["correct"]
-    data["answers"].append(selected == correct)
+    selected_text = update.message.text.strip()
+    correct_index = QUESTIONS[q_index]["correct"]
+    correct_text = QUESTIONS[q_index]["options"][correct_index]
+    data["answers"].append(selected_text == correct_text)
     data["current_q"] += 1
+    await update.message.delete()
 
     if time.time() - data["start_time"] > 14 * 60 or data["current_q"] >= len(QUESTIONS):
         await finish_quiz(update, context)
@@ -129,9 +128,5 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(handle_callback, pattern="start_form"))
-app.add_handler(CallbackQueryHandler(start_quiz, pattern="start_quiz"))
-app.add_handler(CallbackQueryHandler(handle_answer, pattern="answer_"))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, collect_info))
-
 app.run_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=WEBHOOK_URL)
