@@ -13,7 +13,7 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN_QUIZ")
 PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"  # غيّر "اسم-الخدمة"
-GROUP_CHAT_ID = -100758881451  # تأكد أن البوت مضاف كمشرف
+GROUP_CHAT_ID = 758881451  # تأكد أن البوت مضاف كمشرف
 
 QUESTIONS = [
     {"q": "ما ناتج 7 × 8؟", "options": ["54", "56", "58"], "correct": 1},
@@ -178,3 +178,4 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
