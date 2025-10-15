@@ -13,7 +13,7 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN_QUIZ")
 PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"  # غيّر "اسم-الخدمة"
-ADMIN_USER_ID = 5331524661  # ← ضع هنا معرفك الشخصي
+ADMIN_USER_ID = 758881451  # ← ضع هنا معرفك الشخصي
 
 QUESTIONS = [
     {"q": "ما ناتج 7 × 8؟", "options": ["54", "56", "58"], "correct": 1},
@@ -137,6 +137,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     grade = data["grade"]
     test_id = data["test_id"]
 
+    # الإحصائية للطالب (بدون ID)
     summary = f"📊 النتيجة: {score}/7 - {result}\n\n📋 الإحصائية:\n"
     for i, correct in enumerate(data["answers"]):
         symbol = "✅" if correct else "❌"
@@ -156,21 +157,22 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     )
 
+    # الإحصائية لصاحب البوت (تتضمن ID)
     full_info = (
         f"🧪 اختبار رقم {test_id}\n"
         f"👤 الاسم: {name}\n"
         f"📞 الهاتف: {phone}\n"
         f"🏫 المدرسة: {school}\n"
-        f"📚 الصف: {grade}\n\n"
+        f"📚 الصف: {grade}\n"
+        f"🆔 معرف المستخدم: {user_id}\n\n"
         + summary
     )
+    await context.bot.send_message(chat_id=OWNER_ID, text=full_info)
 
+    # إعادة تعيين المستخدم وعرض زر البداية
     keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
     await context.bot.send_message(chat_id=user_id, text="👋 مرحبًا بك في بوت الاختبارات", reply_markup=keyboard)
-    await context.bot.send_message(chat_id=ADMIN_USER_ID, text=full_info)
-
-    user_data[user_id] = {}  # إعادة تعيين بيانات المستخدم
-
+    user_data[user_id] = {}
 
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
@@ -181,6 +183,7 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
 
 
