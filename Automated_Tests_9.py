@@ -164,10 +164,11 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📚 الصف: {grade}\n\n"
         + summary
     )
-    await context.bot.send_message(chat_id=ADMIN_USER_ID, text=full_info)
 
     keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
     await context.bot.send_message(chat_id=user_id, text="👋 مرحبًا بك في بوت الاختبارات", reply_markup=keyboard)
+    await context.bot.send_message(chat_id=ADMIN_USER_ID, text=full_info)
+
     user_data[user_id] = {}  # إعادة تعيين بيانات المستخدم
 
 
@@ -180,6 +181,7 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
 
 
