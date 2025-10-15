@@ -13,7 +13,7 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN_QUIZ")
 PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"  # غيّر "اسم-الخدمة"
-GROUP_CHAT_ID = 758881451  # تأكد أن البوت مضاف كمشرف
+ADMIN_USER_ID = 5331524661  # ← ضع هنا معرفك الشخصي
 
 QUESTIONS = [
     {"q": "ما ناتج 7 × 8؟", "options": ["54", "56", "58"], "correct": 1},
@@ -164,7 +164,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📚 الصف: {grade}\n\n"
         + summary
     )
-    await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=full_info)
+    await context.bot.send_message(chat_id=ADMIN_USER_ID, text=full_info)
 
     keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
     await context.bot.send_message(chat_id=user_id, text="👋 مرحبًا بك في بوت الاختبارات", reply_markup=keyboard)
@@ -180,5 +180,6 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
 
