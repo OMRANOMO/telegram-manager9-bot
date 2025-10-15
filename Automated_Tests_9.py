@@ -1,16 +1,11 @@
 import os
 import time
 import asyncio
-from telegram import (
-    Update,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-)
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
     ContextTypes,
     filters,
 )
@@ -20,7 +15,8 @@ PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"  # غيّر "اسم-الخدمة"
 GROUP_CHAT_ID = -100758881451  # تأكد أن البوت مضاف كمشرف
 
-MATH_QUESTIONS = [
+# أسئلة موحدة لجميع الاختبارات (يمكن تخصيصها لاحقًا)
+QUESTIONS = [
     {"q": "ما ناتج 7 × 8؟", "options": ["54", "56", "58"], "correct": 1},
     {"q": "ما هو الجذر التربيعي لـ 81؟", "options": ["9", "8", "7"], "correct": 0},
     {"q": "كم عدد أضلاع المثلث؟", "options": ["3", "4", "5"], "correct": 0},
@@ -32,26 +28,25 @@ MATH_QUESTIONS = [
 
 user_data = {}
 
-# عرض زر البداية
+# بدء البوت
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = ReplyKeyboardMarkup(
-        [[KeyboardButton("ابدأ")]],
-        one_time_keyboard=True,
-        resize_keyboard=True
-    )
+    keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
     await update.message.reply_text("👋 مرحبًا بك في بوت الاختبارات", reply_markup=keyboard)
 
+# التعامل مع جميع الرسائل النصية
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
     data = user_data.get(user_id)
 
+    # عرض قائمة الاختبارات
     if text == "ابدأ":
         buttons = [[KeyboardButton(f"الاختبار {i}")] for i in range(1, 33)]
         markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("📚 اختر الاختبار:", reply_markup=markup)
         return
 
+    # اختيار اختبار
     if text.startswith("الاختبار "):
         test_id = int(text.split(" ")[1])
         user_data[user_id] = {
@@ -64,10 +59,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"📝 اختبار رقم {test_id}\nأدخل اسمك الثلاثي:")
         return
 
+    # إذا لم يبدأ المستخدم بعد
     if not data:
         await update.message.reply_text("❗ اضغط /start للبدء.")
         return
 
+    # جمع البيانات خطوة بخطوة
     step = data["step"]
     if step == "name":
         data["name"] = text
@@ -84,11 +81,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif step == "grade":
         data["grade"] = text
         data["step"] = "ready"
-        keyboard = ReplyKeyboardMarkup(
-            [[KeyboardButton("أنا جاهز للاختبار")]],
-            one_time_keyboard=True,
-            resize_keyboard=True
-        )
+        keyboard = ReplyKeyboardMarkup([[KeyboardButton("أنا جاهز للاختبار")]], resize_keyboard=True)
         await update.message.reply_text("⏱ مدة الاختبار 14 دقيقة\n❗ الأسئلة تظهر بشكل متتالي", reply_markup=keyboard)
     elif step == "ready" and text == "أنا جاهز للاختبار":
         data["start_time"] = time.time()
@@ -99,17 +92,29 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif step == "quiz":
         await handle_answer(update, context)
 
+# إرسال المؤقت كل دقيقتين
+async def send_timer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    for i in range(2, 15, 2):
+        await asyncio.sleep(120)
+        if user_data.get(user_id, {}).get("current_q", 7) < 7:
+            await context.bot.send_message(chat_id=user_id, text=f"⏳ باقي من الوقت {14 - i} دقيقة")
+    # إنهاء الاختبار إذا لم يُكمل
+    if user_data.get(user_id, {}).get("current_q", 7) < 7:
+        await context.bot.send_message(chat_id=user_id, text="⏰ انتهى الوقت! سيتم إنهاء الاختبار الآن.")
+        await finish_quiz(update, context)
+
 # إرسال السؤال التالي
 async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     data = user_data[user_id]
     q_index = data["current_q"]
 
-    if q_index >= len(MATH_QUESTIONS):
+    if q_index >= len(QUESTIONS):
         await finish_quiz(update, context)
         return
 
-    q = MATH_QUESTIONS[q_index]
+    q = QUESTIONS[q_index]
     options = [[KeyboardButton(opt)] for opt in q["options"]]
     markup = ReplyKeyboardMarkup(options, one_time_keyboard=True, resize_keyboard=True)
     await context.bot.send_message(chat_id=user_id, text=f"❓ السؤال {q_index + 1}: {q['q']}", reply_markup=markup)
@@ -120,13 +125,13 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = user_data[user_id]
     q_index = data["current_q"]
     selected_text = update.message.text.strip()
-    correct_index = MATH_QUESTIONS[q_index]["correct"]
-    correct_text = MATH_QUESTIONS[q_index]["options"][correct_index]
+    correct_index = QUESTIONS[q_index]["correct"]
+    correct_text = QUESTIONS[q_index]["options"][correct_index]
     data["answers"].append(selected_text == correct_text)
     data["current_q"] += 1
     await update.message.delete()
 
-    if time.time() - data["start_time"] > 14 * 60 or data["current_q"] >= len(MATH_QUESTIONS):
+    if time.time() - data["start_time"] > 14 * 60 or data["current_q"] >= len(QUESTIONS):
         await finish_quiz(update, context)
     else:
         await send_question(update, context)
@@ -140,7 +145,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     summary = f"📊 النتيجة: {score}/7 - {result}\n\n📋 الإحصائية:\n"
     for i, correct in enumerate(data["answers"]):
         symbol = "✅" if correct else "❌"
-        correct_answer = MATH_QUESTIONS[i]["options"][MATH_QUESTIONS[i]["correct"]]
+        correct_answer = QUESTIONS[i]["options"][QUESTIONS[i]["correct"]]
         summary += f"سؤال {i+1}: {symbol} ({correct_answer if not correct else ''})\n"
 
     await context.bot.send_message(chat_id=user_id, text="🏁 انتهى الاختبار!\n" + summary)
@@ -151,17 +156,17 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=full_info)
 
     # إعادة عرض قائمة الاختبارات
-    buttons = []
-    for i in range(1, 33):
-        buttons.append([KeyboardButton(f"الاختبار {i}")])
+    buttons = [[KeyboardButton(f"الاختبار {i}")] for i in range(1, 33)]
     markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
     await context.bot.send_message(chat_id=user_id, text="📚 اختر اختبارًا جديدًا:", reply_markup=markup)
+
+# تشغيل التطبيق
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, show_tests))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, select_test))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, collect_info))
-app.run_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=WEBHOOK_URL)
-
-
-
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+app.run_webhook(
+    listen="0.0.0.0",
+    port=PORT,
+    url_path=TOKEN,
+    webhook_url=WEBHOOK_URL
+)
