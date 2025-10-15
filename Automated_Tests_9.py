@@ -41,41 +41,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text("👋 مرحبًا بك في بوت الاختبارات", reply_markup=keyboard)
 
-# عرض قائمة الاختبارات
-async def show_tests(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    if text != "ابدأ":
-        return
-    buttons = []
-    for i in range(1, 33):
-        buttons.append([KeyboardButton(f"الاختبار {i}")])
-    markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
-    await update.message.reply_text("📚 اختر الاختبار:", reply_markup=markup)
-
-# بدء جمع بيانات الطالب
-async def select_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    if not text.startswith("الاختبار "):
-        return
-    user_id = update.effective_user.id
-    test_id = int(text.split(" ")[1])
-    user_data[user_id] = {
-        "step": "name",
-        "test_id": test_id,
-        "answers": [],
-        "start_time": None,
-        "current_q": 0,
-    }
-    await update.message.reply_text(f"📝 اختبار رقم {test_id}\nأدخل اسمك الثلاثي:")
-
-# جمع بيانات الطالب خطوة بخطوة
-async def collect_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
     data = user_data.get(user_id)
 
+    if text == "ابدأ":
+        buttons = [[KeyboardButton(f"الاختبار {i}")] for i in range(1, 33)]
+        markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
+        await update.message.reply_text("📚 اختر الاختبار:", reply_markup=markup)
+        return
+
+    if text.startswith("الاختبار "):
+        test_id = int(text.split(" ")[1])
+        user_data[user_id] = {
+            "step": "name",
+            "test_id": test_id,
+            "answers": [],
+            "start_time": None,
+            "current_q": 0,
+        }
+        await update.message.reply_text(f"📝 اختبار رقم {test_id}\nأدخل اسمك الثلاثي:")
+        return
+
     if not data:
-        await show_tests(update, context)
+        await update.message.reply_text("❗ اضغط /start للبدء.")
         return
 
     step = data["step"]
@@ -108,18 +98,6 @@ async def collect_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_question(update, context)
     elif step == "quiz":
         await handle_answer(update, context)
-
-# إرسال الوقت المتبقي كل دقيقتين
-async def send_timer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    for i in range(2, 15, 2):
-        await asyncio.sleep(120)
-        if user_data.get(user_id, {}).get("current_q", 7) < 7:
-            await context.bot.send_message(chat_id=user_id, text=f"⏳ باقي من الوقت {14 - i} دقيقة")
-    # بعد انتهاء الوقت
-    if user_data.get(user_id, {}).get("current_q", 7) < 7:
-        await context.bot.send_message(chat_id=user_id, text="⏰ انتهى الوقت! سيتم إنهاء الاختبار الآن.")
-        await finish_quiz(update, context)
 
 # إرسال السؤال التالي
 async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -184,5 +162,6 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, show_tests))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, select_test))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, collect_info))
 app.run_webhook(listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=WEBHOOK_URL)
+
 
 
