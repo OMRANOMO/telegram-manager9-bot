@@ -168,6 +168,8 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
     await context.bot.send_message(chat_id=user_id, text="👋 مرحبًا بك في بوت الاختبارات", reply_markup=keyboard)
+    user_data[user_id] = {}  # إعادة تعيين بيانات المستخدم
+
 
 app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
@@ -178,4 +180,5 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
