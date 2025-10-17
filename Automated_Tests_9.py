@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import asyncio
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
@@ -42,8 +43,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📚 اختر الاختبار:", reply_markup=markup)
         return
 
-  if text.startswith("الاختبار "):
-    test_id = int(text.split(" ")[1])
+    if text.startswith("الاختبار "):
+     test_id = int(text.split(" ")[1])
 
     # تحقق من حالة الاختبار
     try:
@@ -195,6 +196,7 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
 
 
