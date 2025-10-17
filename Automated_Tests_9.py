@@ -42,17 +42,29 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📚 اختر الاختبار:", reply_markup=markup)
         return
 
-    if text.startswith("الاختبار "):
-        test_id = int(text.split(" ")[1])
-        user_data[user_id] = {
-            "step": "name",
-            "test_id": test_id,
-            "answers": [],
-            "start_time": None,
-            "current_q": 0,
-        }
-        await update.message.reply_text(f"📝 اختبار رقم {test_id}\nأدخل اسمك الثلاثي:")
-        return
+  if text.startswith("الاختبار "):
+    test_id = int(text.split(" ")[1])
+
+    # تحقق من حالة الاختبار
+    try:
+        with open("test_status.json", "r") as f:
+            status_data = json.load(f)
+        if status_data.get(str(test_id)) == "off":
+            await update.message.reply_text("🚫 هذا الاختبار مغلق حاليًا.")
+            return
+    except FileNotFoundError:
+        pass  # إذا لم يوجد الملف، نسمح بالاختبار
+
+    user_data[user_id] = {
+        "step": "name",
+        "test_id": test_id,
+        "answers": [],
+        "start_time": None,
+        "current_q": 0,
+    }
+    await update.message.reply_text(f"📝 اختبار رقم {test_id}\nأدخل اسمك الثلاثي:")
+    return
+
 
     if not data:
         await update.message.reply_text("❗ اضغط /start للبدء.")
@@ -183,6 +195,7 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
 
 
