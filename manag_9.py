@@ -1,77 +1,71 @@
 import os
 import json
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
+    CallbackQueryHandler,
     ContextTypes,
 )
 
-# إعداد التوكن والمنفذ
 TOKEN = os.getenv("TOKEN_MANAGER")
 PORT = int(os.environ.get("PORT", 10000))
-WEBHOOK_PATH = f"/{TOKEN}"
-WEBHOOK_URL = f"https://telegram-manager9-bot.onrender.com{WEBHOOK_PATH}"  # غيّر "اسم-الخدمة" إلى اسم خدمتك في Render
-GROUP_CHAT_ID = -100758881451  # غيّر هذا إلى معرف مجموعتك
+WEBHOOK_URL = f"https://telegram-manager9-bot.onrender.com/{TOKEN}"
 
-# إنشاء التطبيق
 app = Application.builder().token(TOKEN).build()
 
-# أوامر البوت
+# عرض لوحة التحكم
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 أهلاً بك! هذا بوت الإدارة.")
+    await show_dashboard(update, context)
 
-async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📊 البوت يعمل بشكل جيد!")
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🛠 قائمة الأوامر:\n"
-        "/start - بدء المحادثة\n"
-        "/status - حالة البوت\n"
-        "/help - المساعدة\n"
-        "/broadcast <نص> - إرسال رسالة إلى المجموعة\n"
-        "/reset - إعادة تعيين حالة الاختبارات\n"
-        "/stats - عرض إحصائيات الاختبارات"
-    )
-
-async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.args:
-        message = "📢 " + " ".join(context.args)
-        await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=message)
-        await update.message.reply_text("✅ تم إرسال الرسالة إلى المجموعة.")
-    else:
-        await update.message.reply_text("❗ يرجى كتابة الرسالة بعد الأمر /broadcast")
-
-async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        with open("test_status.json", "w") as f:
-            json.dump({}, f)
-        await update.message.reply_text("✅ تم إعادة تعيين حالة الاختبارات.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ حدث خطأ أثناء إعادة التعيين: {e}")
-
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# توليد لوحة التحكم
+async def show_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         with open("test_status.json", "r") as f:
-            data = json.load(f)
-        if not data:
-            await update.message.reply_text("📊 لا توجد بيانات حتى الآن.")
-        else:
-            msg = "📈 إحصائيات الاختبارات:\n"
-            for user, score in data.items():
-                msg += f"- {user}: {score}\n"
-            await update.message.reply_text(msg)
-    except Exception as e:
-        await update.message.reply_text(f"❌ حدث خطأ أثناء قراءة البيانات: {e}")
+            status_data = json.load(f)
+    except FileNotFoundError:
+        status_data = {}
+
+    keyboard = []
+    for i in range(1, 33):
+        status = status_data.get(str(i), "on")
+        label = f"الاختبار {i}"
+        toggle = "🔴 off" if status == "off" else "🟢 on"
+        keyboard.append([
+            InlineKeyboardButton(label, callback_data=f"noop"),
+            InlineKeyboardButton(toggle, callback_data=f"toggle_{i}")
+        ])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("🛠 لوحة التحكم:", reply_markup=reply_markup)
+
+# التعامل مع الضغط على الأزرار
+async def handle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data.startswith("toggle_"):
+        test_id = query.data.split("_")[1]
+
+        try:
+            with open("test_status.json", "r") as f:
+                status_data = json.load(f)
+        except FileNotFoundError:
+            status_data = {}
+
+        current = status_data.get(test_id, "on")
+        status_data[test_id] = "off" if current == "on" else "on"
+
+        with open("test_status.json", "w") as f:
+            json.dump(status_data, f)
+
+        # تحديث الواجهة مباشرة
+        await query.edit_message_text("✅ تم التحديث، جاري إعادة تحميل القائمة...")
+        await show_dashboard(update, context)
 
 # تسجيل الأوامر
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("status", status))
-app.add_handler(CommandHandler("help", help_command))
-app.add_handler(CommandHandler("broadcast", broadcast))
-app.add_handler(CommandHandler("reset", reset))
-app.add_handler(CommandHandler("stats", stats))
+app.add_handler(CallbackQueryHandler(handle_toggle))
 
 # تشغيل البوت باستخدام Webhook
 app.run_webhook(
@@ -80,4 +74,3 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
-
