@@ -1,0 +1,14 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # كل 10 دقائق
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send ping to Render
+        run: |
+          curl -s https://telegram-manager9-bot.onrender.com > /dev/null
