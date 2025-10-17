@@ -1,10 +1,6 @@
 import os
 import json
-from telegram import (
-    Update,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-)
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -13,58 +9,91 @@ from telegram.ext import (
     filters,
 )
 
-# إعداد التوكن والمنفذ
-TOKEN = os.getenv("TOKEN_QUIZ")
+# إعدادات أساسية
+TOKEN = os.getenv("TOKEN_QUIZ") or "ضع_التوكن_هنا"
 PORT = int(os.environ.get("PORT", 10000))
-WEBHOOK_URL = f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"  # غيّر هذا إلى رابط بوتك على Render
-OWNER_ID = 123456789  # ← ضع هنا معرفك الشخصي في تيليغرام
+WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"
+OWNER_ID = int(os.getenv("OWNER_ID") or 123456789)  # ضع معرفك هنا إذا رغبت
 
-# بيانات المستخدمين
+# ملف الحالة (shared with manager bot)
+STATUS_FILE = "test_status.json"
+
+# بيانات المستخدم مؤقتة في الذاكرة
 user_data = {}
 
-# قاعدة بيانات الأسئلة لكل اختبار
-ALL_TESTS = {
-    "1": [
-        {"q": "ما ناتج 7 × 8؟", "options": ["54", "56", "58"], "correct": 1},
-        {"q": "كم عدد أضلاع المثلث؟", "options": ["3", "4", "5"], "correct": 0},
-        {"q": "ما هو لون السماء؟", "options": ["أزرق", "أخضر", "أحمر"], "correct": 0},
-        {"q": "ما هو عاصمة سوريا؟", "options": ["دمشق", "حلب", "حمص"], "correct": 0},
-        {"q": "كم عدد أيام الأسبوع؟", "options": ["5", "6", "7"], "correct": 2},
-        {"q": "ما هو الجذر التربيعي لـ 81؟", "options": ["9", "8", "7"], "correct": 0},
-        {"q": "ما هو ناتج 12 ÷ 3؟", "options": ["4", "3", "6"], "correct": 0},
-    ],
-    # يمكنك إضافة اختبارات أخرى بنفس البنية حتى "32"
-}
+# توليد نموذج اختبارات 32 اختباr كل اختبار 7 أسئلة افتراضية (يمكن استبدالها بملف JSON حقيقي)
+def generate_dummy_tests(num_tests: int = 32, questions_per_test: int = 7):
+    all_tests = {}
+    for t in range(1, num_tests + 1):
+        qs = []
+        for q in range(1, questions_per_test + 1):
+            qs.append({
+                "q": f"سؤال {q} من الاختبار {t}؟",
+                "options": [f"خيار A{q}", f"خيار B{q}", f"خيار C{q}"],
+                "correct": 0  # اجابة صحيحة افتراضية هي الخيار الأول
+            })
+        all_tests[str(t)] = qs
+    return all_tests
+
+ALL_TESTS = generate_dummy_tests(32, 7)
+
+# مساعدة قراءة/كتابة ملف الحالة بشكل آمن
+def read_status_file():
+    try:
+        with open(STATUS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except Exception:
+        return {}
+
+def write_status_file(data: dict):
+    with open(STATUS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
 
 # إنشاء التطبيق
 app = Application.builder().token(TOKEN).build()
 
-# إرسال السؤال التالي
+# إرسال السؤال التالي لمستخدم معين
 async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    data = user_data[user_id]
+    data = user_data.get(user_id)
+    if not data:
+        return
     q_index = data["current_q"]
     questions = ALL_TESTS[data["test_id"]]
-    q = questions[q_index]
+    # حماية من أخطاء الفهرسة
+    if q_index < 0 or q_index >= len(questions):
+        await finish_quiz(update, context)
+        return
 
+    q = questions[q_index]
     buttons = [[KeyboardButton(opt)] for opt in q["options"]]
     markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text(f"❓ سؤال {q_index + 1}:\n{q['q']}", reply_markup=markup)
 
-# التعامل مع الإجابات
+# معالجة إجابة المستخدم على سؤال
 async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
-    data = user_data[user_id]
-    q_index = data["current_q"]
-    questions = ALL_TESTS[data["test_id"]]
-
-    if text not in questions[q_index]["options"]:
-        await update.message.reply_text("❗ الرجاء اختيار إجابة من الخيارات.")
+    data = user_data.get(user_id)
+    if not data:
         return
 
-    selected = questions[q_index]["options"].index(text)
-    correct = questions[q_index]["correct"]
+    q_index = data["current_q"]
+    questions = ALL_TESTS[data["test_id"]]
+    # تأكد أن المؤشر صالح
+    if q_index < 0 or q_index >= len(questions):
+        await finish_quiz(update, context)
+        return
+
+    current_q = questions[q_index]
+    if text not in current_q["options"]:
+        await update.message.reply_text("❗ الرجاء اختيار إجابة من الخيارات المعروضة.")
+        return
+
+    selected = current_q["options"].index(text)
+    correct = current_q["correct"]
     data["answers"].append(selected == correct)
     data["current_q"] += 1
 
@@ -73,27 +102,30 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await send_question(update, context)
 
-# إنهاء الاختبار
+# إنهاء الاختبار وإرسال الإحصائيات
 async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    data = user_data[user_id]
+    data = user_data.get(user_id)
+    if not data:
+        return
+
+    questions = ALL_TESTS[data["test_id"]]
     score = sum(data["answers"])
-    result = "✅ ناجح" if score >= 4 else "❌ راسب"
+    result = "✅ ناجح" if score >= (len(questions) // 2 + 1) else "❌ راسب"
 
-    name = data["name"]
-    phone = data["phone"]
-    school = data["school"]
-    grade = data["grade"]
+    name = data.get("name", "غير معروف")
+    phone = data.get("phone", "غير معروف")
+    school = data.get("school", "غير معروف")
+    grade = data.get("grade", "غير معروف")
     test_id = data["test_id"]
-    questions = ALL_TESTS[test_id]
 
-    # الإحصائية للطالب
     summary = f"📊 النتيجة: {score}/{len(questions)} - {result}\n\n📋 الإحصائية:\n"
     for i, correct in enumerate(data["answers"]):
         symbol = "✅" if correct else "❌"
         correct_answer = questions[i]["options"][questions[i]["correct"]]
         summary += f"سؤال {i+1}: {symbol} ({correct_answer if not correct else ''})\n"
 
+    # إرسال للطالب (بدون ID)
     await context.bot.send_message(
         chat_id=user_id,
         text=(
@@ -107,7 +139,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     )
 
-    # الإحصائية لصاحب البوت
+    # إرسال لمالك البوت مع معرف المستخدم
     full_info = (
         f"🧪 اختبار رقم {test_id}\n"
         f"👤 الاسم: {name}\n"
@@ -117,80 +149,102 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 معرف المستخدم: {user_id}\n\n"
         + summary
     )
-    await context.bot.send_message(chat_id=OWNER_ID, text=full_info)
+    try:
+        await context.bot.send_message(chat_id=OWNER_ID, text=full_info)
+    except Exception:
+        pass
 
-    # إعادة التشغيل
-    keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
-    await context.bot.send_message(chat_id=user_id, text="👋 مرحبًا بك في بوت الاختبارات", reply_markup=keyboard)
+    # إعادة تعيين حالة المستخدم وإظهار زر ابدأ
     user_data[user_id] = {}
+    keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
+    await context.bot.send_message(chat_id=user_id, text="👋 يمكنك البدء متى شئت", reply_markup=keyboard)
 
-# التعامل مع الرسائل
+# دالة معالجة الرسائل النصية الرئيسية
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
     data = user_data.get(user_id)
 
+    # زر البداية
     if text == "ابدأ":
         buttons = [[KeyboardButton(f"الاختبار {i}")] for i in range(1, 33)]
         markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("📚 اختر الاختبار:", reply_markup=markup)
         return
 
+    # اختيار الاختبار
     if text.startswith("الاختبار "):
-        test_id = str(int(text.split(" ")[1]))
-
-        # تحقق من حالة الاختبار
         try:
-            with open("test_status.json", "r") as f:
-                status_data = json.load(f)
-            if status_data.get(test_id) == "off":
-                await update.message.reply_text("🚫 هذا الاختبار مغلق حاليًا.")
-                return
-        except FileNotFoundError:
-            pass
+            test_id = str(int(text.split(" ")[1]))
+        except Exception:
+            await update.message.reply_text("❗ صيغة اختيار الاختبار غير صحيحة.")
+            return
 
+        # قراءة حالة الاختبار في الزمن الحقيقي
+        status_data = read_status_file()
+        if status_data.get(test_id) == "off":
+            await update.message.reply_text("🚫 هذا الاختبار مغلق حاليًا.")
+            return
+
+        # وجود الاختبار
         if test_id not in ALL_TESTS:
             await update.message.reply_text("❗ هذا الاختبار غير موجود.")
             return
 
+        # تهيئة بيانات المستخدم لبدء الاختبار
         user_data[user_id] = {
             "step": "name",
             "test_id": test_id,
             "answers": [],
-            "start_time": None,
             "current_q": 0,
         }
         await update.message.reply_text(f"📝 اختبار رقم {test_id}\nأدخل اسمك الثلاثي:")
         return
 
+    # إجراءات الحقول أثناء ملأ بيانات الاختبار
     if data:
         step = data.get("step")
         if step == "name":
             data["name"] = text
             data["step"] = "phone"
             await update.message.reply_text("📞 أدخل رقم هاتفك:")
-        elif step == "phone":
+            return
+        if step == "phone":
             data["phone"] = text
             data["step"] = "school"
             await update.message.reply_text("🏫 أدخل اسم المدرسة:")
-        elif step == "school":
+            return
+        if step == "school":
             data["school"] = text
             data["step"] = "grade"
             await update.message.reply_text("📚 أدخل الصف الدراسي:")
-        elif step == "grade":
+            return
+        if step == "grade":
             data["grade"] = text
             data["step"] = "quiz"
             await send_question(update, context)
-        elif step == "quiz":
+            return
+        if step == "quiz":
             await handle_answer(update, context)
+            return
+
+    # رسائل غير مفهومة
+    await update.message.reply_text("استخدم 'ابدأ' لعرض قائمة الاختبارات أو اكتب الاختبار المطلوب.")
+
+# أمر /start لتشغيل لوحة البداية
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
+    await update.message.reply_text("👋 أهلاً بك في بوت الاختبارات", reply_markup=keyboard)
 
 # تسجيل المعالجات
-app.add_handler(MessageHandler(filters.TEXT, handle_text))
+app.add_handler(CommandHandler("start", cmd_start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
 # تشغيل البوت باستخدام Webhook
-app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    url_path=TOKEN,
-    webhook_url=WEBHOOK_URL
-)
+if __name__ == "__main__":
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=TOKEN,
+        webhook_url=WEBHOOK_URL,
+    )
