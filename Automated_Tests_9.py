@@ -13,7 +13,7 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN_QUIZ") or "ضع_التوكن_هنا"
 PORT = int(os.environ.get("PORT", 10000))
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"
-OWNER_ID = int(os.getenv("OWNER_ID") or 123456789)  # ضع معرفك هنا إذا رغبت
+OWNER_ID = 758881451  # ضع معرفك هنا إذا رغبت
 
 # ملف الحالة (shared with manager bot)
 STATUS_FILE = "test_status.json"
@@ -248,3 +248,4 @@ if __name__ == "__main__":
         url_path=TOKEN,
         webhook_url=WEBHOOK_URL,
     )
+
