@@ -59,9 +59,28 @@ async def handle_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open("test_status.json", "w") as f:
             json.dump(status_data, f)
 
-        # تحديث الواجهة مباشرة
-        await query.edit_message_text("✅ تم التحديث، جاري إعادة تحميل القائمة...")
-        await show_dashboard(update, context)
+       # إعادة توليد لوحة التحكم مباشرة
+try:
+    with open("test_status.json", "r") as f:
+        status_data = json.load(f)
+except FileNotFoundError:
+    status_data = {}
+
+keyboard = []
+for i in range(1, 33):
+    status = status_data.get(str(i), "on")
+    label = f"الاختبار {i}"
+    toggle = "🔴 off" if status == "off" else "🟢 on"
+    keyboard.append([
+        InlineKeyboardButton(label, callback_data="noop"),
+        InlineKeyboardButton(toggle, callback_data=f"toggle_{i}")
+    ])
+
+reply_markup = InlineKeyboardMarkup(keyboard)
+
+# تعديل الرسالة فقط إذا تغير شيء فعليًا
+await query.edit_message_reply_markup(reply_markup=reply_markup)
+
 
 # تسجيل الأوامر
 app.add_handler(CommandHandler("start", start))
@@ -74,3 +93,4 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
