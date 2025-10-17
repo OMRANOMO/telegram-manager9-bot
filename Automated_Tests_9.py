@@ -167,7 +167,7 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 معرف المستخدم: {user_id}\n\n"
         + summary
     )
-    await context.bot.send_message(chat_id=OWNER_ID, text=full_info)
+    await context.bot.send_message(chat_id=ADMIN_USER_ID, text=full_info)
 
     # إعادة تعيين المستخدم وعرض زر البداية
     keyboard = ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True)
@@ -183,6 +183,7 @@ app.run_webhook(
     url_path=TOKEN,
     webhook_url=WEBHOOK_URL
 )
+
 
 
 
