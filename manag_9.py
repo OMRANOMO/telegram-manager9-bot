@@ -220,7 +220,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_reply_markup(reply_markup=build_dashboard_markup(status_map))
             await query.reply_text(f"تم تحديث حالة {key} → {new}")
         else:
-            await query.reply_text("فشل تحديث الحالة على GitHub. تحقق من إعدادات GH_TOKEN و GH_REPO.")
+         await query.message.reply_text("فشل تحديث الحالة على GitHub. تحقق من إعدادات GH_TOKEN و GH_REPO.")  
 
 # ------------------ تسجيل المعالجات وتشغيل البوت ------------------
 app = Application.builder().token(TOKEN).build()
@@ -235,5 +235,6 @@ if __name__ == "__main__":
         url_path=TOKEN,
         webhook_url=WEBHOOK_URL,
     )
+
 
 
