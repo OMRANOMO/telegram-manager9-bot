@@ -9,11 +9,11 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 # ------------------ إعدادات ------------------
 TOKEN = os.getenv("TOKEN_MANAGER") 
 PORT = int(os.getenv("PORT") or 10000)
-WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://your-manager-service.onrender.com/{TOKEN}"
+WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://telegram-manager9-bot.onrender.com/{TOKEN}"
 
 # GitHub config
 GH_TOKEN = os.getenv("GH_TOKEN")  # توكن GitHub (يجب إضافته كمتغير بيئة)
-GH_REPO = os.getenv("GH_REPO") or "USERNAME/REPO_NAME"  # مثال: "OMRANOMO/telegram-manager9-bot"
+GH_REPO = os.getenv("GH_REPO") or "OMRANOMO/telegram-manager9-bot"  # مثال: "OMRANOMO/telegram-manager9-bot"
 GH_BRANCH = os.getenv("GH_BRANCH") or "main"
 GH_FILE_PATH = os.getenv("GH_FILE_PATH") or "test_status.json"
 
@@ -235,3 +235,4 @@ if __name__ == "__main__":
         url_path=TOKEN,
         webhook_url=WEBHOOK_URL,
     )
+
