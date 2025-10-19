@@ -18,7 +18,7 @@ GH_BRANCH = os.getenv("GH_BRANCH") or "main"
 GH_FILE_PATH = os.getenv("GH_FILE_PATH") or "test_status.json"
 
 # Raw URL (بديل للقراءة دون مصادقة إذا المستودع عام)
-GH_RAW_URL = os.getenv("GH_RAW_URL") or f"https://raw.githubusercontent.com/{GH_REPO}/{GH_BRANCH}/{GH_FILE_PATH}"
+GH_RAW_URL = os.getenv("GH_RAW_URL") or f"https://raw.githubusercontent.com/OMRANOMO/telegram-manager9-bot/refs/heads/main/test_status.json"
 
 # ------------------ شجرة الاختبارات (مطابقة لبوت الاختبارات) ------------------
 # تُستخدم هذه الشجرة لبناء لوحة التحكم وأزرار التبديل
@@ -235,4 +235,5 @@ if __name__ == "__main__":
         url_path=TOKEN,
         webhook_url=WEBHOOK_URL,
     )
+
 
