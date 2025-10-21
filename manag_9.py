@@ -4,7 +4,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 
 TOKEN = os.getenv("TOKEN_MANAGER") or "ضع_توكن_الإدارة"
 PORT = int(os.getenv("PORT") or 10000)
-WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://your-manager-service.onrender.com/{TOKEN}"
+WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://telegram-manager9-bot.onrender.com/{TOKEN}"
 
 GH_TOKEN = os.getenv("GH_TOKEN")
 GH_REPO = os.getenv("GH_REPO") or "OMRANOMO/telegram-manager9-bot"
@@ -88,3 +88,4 @@ app.add_handler(CallbackQueryHandler(handle_cb))
 
 if __name__=="__main__":
     app.run_webhook(listen="0.0.0.0",port=PORT,url_path=TOKEN,webhook_url=WEBHOOK_URL)
+
