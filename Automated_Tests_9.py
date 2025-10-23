@@ -292,17 +292,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("هذا الاختبار مكون من 10 أسئلة. هل أنت جاهز؟", reply_markup=kb)
         return
 
-    # تأكيد البدء: عند الضغط على "جاهز" نعرض الدعاء ثم نبدأ
+   # تأكيد البدء: عند الضغط على "جاهز" نعرض الدعاء ثم ننتظر زر "أمين"
     if data.get("step") == "quiz" and data.get("substep") == "confirm_ready":
-        if text == "جاهز":
-            # عرض الدعاء ثم بدء السؤال الأول
-            await update.message.reply_text("اللهم لا سهل الا ما جعلته سهلا")
-            data["substep"] = "started"
-            # تأكد أن current_q و answers مُهيّأة
-            data.setdefault("current_q", 0)
-            data.setdefault("answers", [])
-            await send_question(update, context)
-            return
+      if text == "جاهز":
+          # عرض الدعاء
+          await update.message.reply_text("اللهم لا سهل الا ما جعلته سهلا")
+          # اضبط الحالة لانتظار زر "أمين"
+          data["substep"] = "await_amin"
+          # أرسل زر واحد "أمين" للمستخدم
+          kb = ReplyKeyboardMarkup([[KeyboardButton("أمين")]], one_time_keyboard=True, resize_keyboard=True)
+          await update.message.reply_text("اضغط 'أمين' للبدء", reply_markup=kb)
+         return
         else:
             # إذا اختار "ليس الآن" أعِده إلى الرئيسية
             await update.message.reply_text("حسناً، عند الاستعداد أعد تشغيل الاختبار عبر 'ابدأ'.", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("ابدأ")]], resize_keyboard=True))
@@ -355,3 +355,4 @@ if __name__ == "__main__":
         url_path=TOKEN,
         webhook_url=WEBHOOK_URL,
     )
+
