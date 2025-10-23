@@ -19,7 +19,7 @@ from telegram.ext import (
 
 # ------------------ إعدادات (القيم التي زودتني بها) ------------------
 TOKEN = os.getenv("TOKEN_QUIZ")
-OWNER_ID = 758881451
+OWNER_ID = 916422363
 PORT = int(os.getenv("PORT") or 10000)
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"
 GH_RAW_URL = "https://raw.githubusercontent.com/OMRANOMO/telegram-manager9-bot/main/test_status.json"
@@ -389,3 +389,4 @@ if __name__ == "__main__":
         url_path=TOKEN,
         webhook_url=WEBHOOK_URL,
     )
+
