@@ -19,13 +19,13 @@ from telegram.ext import (
 
 # ------------------ إعدادات (القيم التي زودتني بها) ------------------
 TOKEN = os.getenv("TOKEN_QUIZ")
-OWNER_ID = 916422363
+OWNER_ID = 758881451
 PORT = int(os.getenv("PORT") or 10000)
 WEBHOOK_URL = os.getenv("WEBHOOK_URL") or f"https://telegram-Quize9-bot.onrender.com/{TOKEN}"
 GH_RAW_URL = "https://raw.githubusercontent.com/OMRANOMO/telegram-manager9-bot/main/test_status.json"
 
 # ------------------ تخزين حالة المستخدم مؤقتا ------------------
-user_data = {}  # { user_id: { step, substep, category, unit, test_key, test_title, current_q, answers, name, phone, school, grade } }
+user_data = {}  # { user_id: { step, substep, category, unit, test_key, test_title, current_q, answers, name, phone, school, section } }
 
 # ------------------ شجرة الاختبارات ------------------
 QUIZ_TREE = {
@@ -127,9 +127,8 @@ def fetch_status_from_github():
 def build_reply_keyboard(labels, add_main=False):
     kb = []
     for lbl in labels:
-        # أضف أيقونات للأزرار الشائعة
         btn = lbl
-        if "الهندسة" in lbl or "الجبر" in lbl:
+        if "الهندسة" in lbl or "الجبر" in lbl or "اختبارات" in lbl:
             btn = "📚 " + lbl
         kb.append([KeyboardButton(btn)])
     if add_main:
@@ -145,14 +144,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_data[user_id] = {}
     kb = ReplyKeyboardMarkup(
-        [[KeyboardButton("🧮 اختبارات الهندسة"), KeyboardButton("➗ الجبر")]],
+        [[KeyboardButton("🧮 اختبارات الهندسة"), KeyboardButton("🔢 اختبارات الجبر")]],
         one_time_keyboard=True, resize_keyboard=True,
     )
     await update.message.reply_text("مرحبا بك عزيزي الطالب", reply_markup=kb)
 
 async def send_unit_list(update: Update, context: ContextTypes.DEFAULT_TYPE, category):
     units = list(QUIZ_TREE[category].keys())
-    labels = [f"📘 {u}" for u in units]
     await update.message.reply_text(f"اختر الوحدة في {category}:", reply_markup=build_reply_keyboard(units, add_main=True))
     user_data[update.effective_user.id] = {"step": "choose_unit", "category": category}
 
@@ -179,7 +177,6 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await finish_quiz(update, context)
         return
     q = test_obj["questions"][q_index]
-    # بناء أزرار خيارات مع أيقونات
     buttons = [[KeyboardButton(opt)] for opt in q["options"]]
     markup = ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text(f"سؤال {q_index+1}/10:\n{q['q']}", reply_markup=markup)
@@ -198,7 +195,6 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     summary_lines = []
     for i in range(len(answers_flags)):
         correct_ans = qs[i]["options"][qs[i]["correct"]]
-        # سجل إجابة المستخدم إن وُجدت
         user_ans = qs[i].get("selected_text", "-")
         mark = "✅" if answers_flags[i] else "❌"
         summary_lines.append(f"س{i+1}: {mark} | إجابتك: {user_ans} | الصحيحة: {correct_ans}")
@@ -208,18 +204,16 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🧑‍🎓 الاسم: {data.get('name','-')}\n"
         f"📞 الهاتف: {data.get('phone','-')}\n"
         f"🏫 المدرسة: {data.get('school','-')}\n"
-        f"📚 الصف: {data.get('grade','-')}\n"
+        f"📚 الشعبة: {data.get('section','-')}\n"
         f"🔢 النتيجة: {score}/10 — {passed}\n\n"
         f"تفاصيل الإجابات:\n{summary}"
     )
     await context.bot.send_message(chat_id=user_id, text=user_message)
-    # إرسال للمالك مع التفاصيل
     owner_message = f"نتيجة اختبار للمستخدم: {user_id}\n\n{user_message}"
     try:
         await context.bot.send_message(chat_id=OWNER_ID, text=owner_message)
     except Exception as e:
         print("ERROR sending to owner:", e, file=sys.stderr)
-    # إعادة تعيين وعرض زر ابدأ
     user_data[user_id] = {}
     await context.bot.send_message(chat_id=user_id, text="✅ تم حفظ النتيجة.", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("🔄 ابدأ من جديد")]], resize_keyboard=True))
 
@@ -238,7 +232,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text in ("🧮 اختبارات الهندسة", "اختبارات الهندسة"):
         await send_unit_list(update, context, "الهندسة")
         return
-    if text in ("➗ الجبر", "الجبر"):
+    if text in ("🔢 اختبارات الجبر", "اختبارات الجبر", "➗ الجبر", "الجبر"):
         await send_unit_list(update, context, "الجبر")
         return
 
@@ -250,7 +244,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # أثناء اختيار الوحدة
     if data.get("step") == "choose_unit":
         category = data.get("category")
-        # نقبل النص الأصلي للوحدة أو مع أيقونة
         unit_map = {f"📘 {u}": u for u in QUIZ_TREE.get(category, {})}
         if text in QUIZ_TREE.get(category, {}):
             await send_test_list_for_unit(update, context, category, text)
@@ -262,18 +255,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_unit_list(update, context, category)
             return
 
-    # اختيار اختبار: نقارن بعناوين الاختبارات (قد يكون النص مع أيقونة 📝)
+    # اختيار اختبار
     for cat, units in QUIZ_TREE.items():
         for unit_name, tests in units.items():
             for title, key in tests:
                 alt = f"📝 {title}"
                 if text == title or text == alt:
-                    # تحقق من حالة الاختبار من GitHub
                     status_data = fetch_status_from_github()
                     if status_data.get(key) == "off":
                         await update.message.reply_text("🚫 هذا الاختبار مغلق حاليًا.")
                         return
-                    # ابدأ جمع بيانات الطالب
                     user_data[user_id] = {
                         "step": "quiz",
                         "substep": "await_name",
@@ -304,13 +295,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # المدرسة
     if data.get("step") == "quiz" and data.get("substep") == "await_school":
         data["school"] = text
-        data["substep"] = "await_grade"
-        await update.message.reply_text("📘 أدخل الصف الذي تدرسه:")
+        data["substep"] = "await_section"
+        await update.message.reply_text("📘 ادخل الشعبة التي تدرس بها:")
         return
 
-    # الصف
-    if data.get("step") == "quiz" and data.get("substep") == "await_grade":
-        data["grade"] = text
+    # الشعبة
+    if data.get("step") == "quiz" and data.get("substep") == "await_section":
+        data["section"] = text
         data["substep"] = "confirm_ready"
         kb = ReplyKeyboardMarkup([[KeyboardButton("✅ جاهز")], [KeyboardButton("⏳ ليس الآن")]], one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("هذا الاختبار مكون من 10 أسئلة. هل أنت جاهز؟", reply_markup=kb)
@@ -359,7 +350,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❗ الرجاء اختيار إجابة من الخيارات.")
             return
         selected = current_q["options"].index(text)
-        # حفظ النص المختار داخل السؤال لعرضه لاحقًا
         current_q["selected_text"] = current_q["options"][selected]
         current_q["selected_index"] = selected
         data["answers"].append(selected == current_q["correct"])
@@ -371,7 +361,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # رسالة افتراضية إرشادية
-    await update.message.reply_text("استخدم 'ابدأ' لبدء أو اختر فئة الاختبارات (🧮 اختبارات الهندسة أو ➗ الجبر).")
+    await update.message.reply_text("استخدم 'ابدأ' لبدء أو اختر فئة الاختبارات (🧮 اختبارات الهندسة أو 🔢 اختبارات الجبر).")
 
 # ------------------ تسجيل وتشغيل البوت ------------------
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -389,4 +379,3 @@ if __name__ == "__main__":
         url_path=TOKEN,
         webhook_url=WEBHOOK_URL,
     )
-
